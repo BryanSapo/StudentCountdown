@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>個別計時器</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .custom-progress {
+      background-color: gray; /* Lighter than table background */
+      height: 20px;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .custom-progress .progress-bar {
+      line-height: 20px;
+      font-size: 0.75rem;
+      text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+    }
+    .progress-wrapper {
+        position: relative;
+      }
+      
+      .progress-value-label {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        font-weight: bold;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        z-index: 2;
+        pointer-events: none;
+      }
+      
+  </style>
+</head>
+<body>
+  <div class="container mt-4">
+    <!-- Input Form -->
+    <form action="/add" method="POST" class="mt-4">
+        <div class="mb-3">
+          <input type="text" name="name" class="form-control" placeholder="Enter Student Name" required>
+        </div>
+        <div class="mb-3">
+          <input type="number" name="endTime" class="form-control" placeholder="Enter Minutes" min="1" required>
+        </div>
+        <div class="mb-3">
+          <input type="text" name="classID" class="form-control" placeholder="Enter Class ID" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Entry</button>
+      </form>
+      
+    <!-- Filter by Class ID or show all -->
+    <form method="GET" action="/" class="mt-4">
+        <div class="mb-3">
+        <input type="text" name="filter_class" class="form-control" placeholder="Enter Class ID to View Records">
+        </div>
+        <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" value="1" id="showAll" name="show_all">
+        <label class="form-check-label" for="showAll">
+            Show All Classes
+        </label>
+        </div>
+        <button type="submit" class="btn btn-secondary">Filter</button>
+    </form>
+  
+      
+
+    <!-- Display DB data where Validation is True -->
+    {% if data %}
+    <h3 class="mt-5">Valid Entries</h3>
+    <table class="table table-striped mt-3">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Start Time</th>
+            <th>End Time</th>
+            <th>Validation</th>
+            <th>Countdown</th>
+            <th>Progress</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in data %}
+          <tr>
+            <td>{{ entry.Name }}</td>
+            <td>{{ entry.StartTime }}</td>
+            <td>{{ entry.EndTime }}</td>
+            <td>{{ entry.Validation }}</td>
+            <td><span class="countdown" data-endtime="{{ entry.EndTime }}"></span></td>
+            <td>
+                <div class="progress-wrapper">
+                  <span class="progress-value-label">0%</span>  <!-- default, updated by JS -->
+                  <div class="progress custom-progress">
+                    <div class="progress-bar bg-info bg-gradient text-white fw-bold"
+                         role="progressbar"
+                         style="width: 0%;"
+                         data-start="{{ entry.StartTime }}"
+                         data-end="{{ entry.EndTime }}">
+                    </div>
+                  </div>
+                </div>
+              </td>
+              
+              
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      
+    {% else %}
+    <p class="mt-5 text-muted">No valid entries yet.</p>
+    {% endif %}
+
+        <!-- Dropdown for expired entries -->
+    <h3 class="mt-5">Expired Entries</h3>
+    {% if expired %}
+    <table class="table table-striped mt-3">
+        <thead>
+            <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Start Time</th>
+                  <th>End Time</th>
+                  <th>Validation</th>
+                  <th>Delete</th>
+                </tr>
+              </thead>
+              
+              <tbody>
+                {% for entry in expired %}
+                <tr>
+                  <td>{{ entry.Name }}</td>
+                  <td>{{ entry.StartTime }}</td>
+                  <td>{{ entry.EndTime }}</td>
+                  <td>{{ entry.Validation }}</td>
+                  <td>
+                    <form action="/delete" method="POST" onsubmit="return confirm('Are you sure to delete this record?');">
+                      <input type="hidden" name="name" value="{{ entry.Name }}">
+                      <input type="hidden" name="start_time" value="{{ entry.StartTime }}">
+                      <input type="hidden" name="end_time" value="{{ entry.EndTime }}">
+                      <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              
+        </table>
+    {% else %}
+        <p class="mt-5 text-muted">No expired entries</p>
+    {% endif %}
+    </select>
+  </div>
+  
+
+
+  <!-- JavaScript Countdown -->
+  <script>
+    function updateCountdowns() {
+      const countdownEls = document.querySelectorAll('.countdown');
+      countdownEls.forEach(el => {
+        const endTimeStr = el.dataset.endtime;
+        const endTime = new Date(endTimeStr.replace(' ', 'T')); // Convert to valid Date format
+        const now = new Date();
+        const diff = endTime - now;
+
+        if (diff <= 0) {
+          el.textContent = "Expired";
+        } else {
+          const hours = String(Math.floor(diff / (1000 * 60 * 60))).padStart(2, '0');
+          const minutes = String(Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+          const seconds = String(Math.floor((diff % (1000 * 60)) / 1000)).padStart(2, '0');
+          el.textContent = `${hours}:${minutes}:${seconds}`;
+        }
+      });
+    }
+
+    // Update every second
+    setInterval(updateCountdowns, 1000);
+    updateCountdowns(); // Run once immediately
+  </script>
+  <script>
+    function updateCountdownsAndProgress() {
+        const wrappers = document.querySelectorAll('.progress-wrapper');
+
+        wrappers.forEach(wrapper => {
+          const bar = wrapper.querySelector('.progress-bar');
+          const label = wrapper.querySelector('.progress-value-label');
+          
+          const start = new Date(bar.dataset.start.replace(' ', 'T'));
+          const end = new Date(bar.dataset.end.replace(' ', 'T'));
+          const now = new Date();
+        
+          const total = end - start;
+          const passed = now - start;
+          const percent = Math.min(100, Math.max(0, (passed / total) * 100));
+          
+          bar.style.width = percent.toFixed(2) + '%';
+          label.textContent = percent >= 100 ? "Done" : percent.toFixed(0) + '%';
+        
+          if (percent >= 100) {
+            bar.classList.add('bg-success');
+          } else {
+            bar.classList.remove('bg-success');
+          }
+        });
+        
+    }
+    
+    setInterval(updateCountdownsAndProgress, 1000);
+    updateCountdownsAndProgress(); // initial run
+    </script>
+    
+</body>
+</html>
